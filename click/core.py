@@ -776,8 +776,6 @@ class BaseCommand(object):
         else:
             args = list(args)
 
-        print('CLICK:', args)
-
         if prog_name is None:
             prog_name = make_str(os.path.basename(
                 sys.argv and sys.argv[0] or __file__))
@@ -1015,11 +1013,7 @@ class Command(BaseCommand):
     def parse_args(self, ctx, args):
         parser = self.make_parser(ctx)
 
-        print('CLICK.parse_args:before:', args)
-
         opts, args, param_order = parser.parse_args(args=args)
-
-        print('CLICK.parse_args:after:', opts, args, param_order)
 
         for param in iter_params_for_processing(
                 param_order, self.get_params(ctx)):
@@ -1174,15 +1168,11 @@ class MultiCommand(Command):
 
         rest = Command.parse_args(self, ctx, args)
 
-        print('CLICK.multi_command.parsse_args', args)
-
         if self.chain:
             ctx.protected_args = rest
             ctx.args = []
         elif rest:
             ctx.protected_args, ctx.args = rest[:1], rest[1:]
-
-        print('CLICK.multi_command.parsse_args', ctx.protected_args, ctx.args)
 
         return ctx.args
 
