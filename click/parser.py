@@ -212,6 +212,7 @@ class OptionParser(object):
         #: non-option.  Click uses this to implement nested subcommands
         #: safely.
         self.allow_interspersed_args = True
+        self.ignore_end_of_the_opts_marker = False
         #: This tells the parser how to deal with unknown options.  By
         #: default it will error out (which is sensible), but there is a
         #: second mode where it will ignore it and continue processing
@@ -220,6 +221,7 @@ class OptionParser(object):
         if ctx is not None:
             self.allow_interspersed_args = ctx.allow_interspersed_args
             self.ignore_unknown_options = ctx.ignore_unknown_options
+            self.ignore_end_of_the_opts_marker = ctx.ignore_end_of_the_opts_marker
         self._short_opt = {}
         self._long_opt = {}
         self._opt_prefixes = set(['-', '--'])
@@ -289,7 +291,10 @@ class OptionParser(object):
             # Double dashes always handled explicitly regardless of what
             # prefixes are valid.
             if arg == '--':
-                return
+                if self.ignore_end_of_the_opts_marker:
+                    state.largs.append(arg)
+                else:
+                    return
             elif arg[:1] in self._opt_prefixes and arglen > 1:
                 self._process_opts(arg, state)
             elif self.allow_interspersed_args:

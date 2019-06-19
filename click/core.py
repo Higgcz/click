@@ -142,9 +142,9 @@ class ParameterSource(object):
     ENVIRONMENT = "ENVIRONMENT"
     DEFAULT = "DEFAULT"
     DEFAULT_MAP = "DEFAULT_MAP"
-    
+
     VALUES = {COMMANDLINE, ENVIRONMENT, DEFAULT, DEFAULT_MAP}
-    
+
     @classmethod
     def validate(cls, value):
         """Validate that the specified value is a valid enum.
@@ -222,6 +222,8 @@ class Context(object):
     :param allow_interspersed_args: if this is set to `False` then options
                                     and arguments cannot be mixed.  The
                                     default is to inherit from the command.
+    :param ignore_end_of_the_opts_marker: instructs click to not delete
+                                          double dash (--) marker from arguments
     :param ignore_unknown_options: instructs click to ignore options it does
                                    not know and keeps them for later
                                    processing.
@@ -244,6 +246,7 @@ class Context(object):
                  terminal_width=None, max_content_width=None,
                  resilient_parsing=False, allow_extra_args=None,
                  allow_interspersed_args=None,
+                 ignore_end_of_the_opts_marker=None,
                  ignore_unknown_options=None, help_option_names=None,
                  token_normalize_func=None, color=None):
         #: the parent context or `None` if none exists.
@@ -326,6 +329,16 @@ class Context(object):
         #: .. versionadded:: 4.0
         self.ignore_unknown_options = ignore_unknown_options
 
+        if ignore_end_of_the_opts_marker is None:
+            ignore_end_of_the_opts_marker = command.ignore_end_of_the_opts_marker
+        #: Click is using the standard double dash (--) marker to signify
+        #: the end of the command options, after which only positional arguments
+        #: are accepted. But sometimes you could want to pass the rest of
+        #: the arguments to some external function, in which case you want to
+        #: pass even the double dash (--) marker.
+        #:
+        self.ignore_end_of_the_opts_marker = ignore_end_of_the_opts_marker
+
         if help_option_names is None:
             if parent is not None:
                 help_option_names = parent.help_option_names
@@ -369,7 +382,7 @@ class Context(object):
         self._close_callbacks = []
         self._depth = 0
         self._source_by_paramname = {}
-        
+
     def __enter__(self):
         self._depth += 1
         push_context(self)
@@ -659,6 +672,8 @@ class BaseCommand(object):
     allow_interspersed_args = True
     #: the default for the :attr:`Context.ignore_unknown_options` flag.
     ignore_unknown_options = False
+    #: the default for the :attr:`Context.ignore_end_of_the_opts_marker` flag
+    ignore_end_of_the_opts_marker = False
 
     def __init__(self, name, context_settings=None):
         #: the name the command thinks it has.  Upon registering a command
@@ -760,6 +775,8 @@ class BaseCommand(object):
             args = get_os_args()
         else:
             args = list(args)
+
+        print('CLICK:', args)
 
         if prog_name is None:
             prog_name = make_str(os.path.basename(
@@ -997,7 +1014,12 @@ class Command(BaseCommand):
 
     def parse_args(self, ctx, args):
         parser = self.make_parser(ctx)
+
+        print('CLICK.parse_args:before:', args)
+
         opts, args, param_order = parser.parse_args(args=args)
+
+        print('CLICK.parse_args:after:', opts, args, param_order)
 
         for param in iter_params_for_processing(
                 param_order, self.get_params(ctx)):
@@ -1151,11 +1173,16 @@ class MultiCommand(Command):
             ctx.exit()
 
         rest = Command.parse_args(self, ctx, args)
+
+        print('CLICK.multi_command.parsse_args', args)
+
         if self.chain:
             ctx.protected_args = rest
             ctx.args = []
         elif rest:
             ctx.protected_args, ctx.args = rest[:1], rest[1:]
+
+        print('CLICK.multi_command.parsse_args', ctx.protected_args, ctx.args)
 
         return ctx.args
 
